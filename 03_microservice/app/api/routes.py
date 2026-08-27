@@ -61,7 +61,6 @@ async def chat_completions(raw_request: Request):
 
     if stream_requested:
         async def event_generator():
-            # Evento con tipo explícito que exige el validador de Banorte
             chunk_data = {
                 "type": "text",
                 "role": "assistant",
