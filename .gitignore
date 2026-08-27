@@ -1,45 +1,24 @@
-# Logs
-logs/
-*.log
-
-# Dependency directories
-node_modules
-__pycache__
-
-# IDE and editor files
-.vscode/
-.idea/
-
-# Operating system files
-.Thumbs.db
-
-# Terraform state files
-*.tfstate*
-*.terraform
-
-# Docker
-*.dockerenv
-
-# .env files
+# 1. Secretos y Entornos Virtuales (CRÍTICO)
 .env
-.env.*
+venv/
+.venv/
+env/
 
-# Jupyter notebooks
-.ipynb_checkpoints/
-
-# Build output and cache directories
-/build/
-/dist/
-/cache/
-
-# Miscellaneous
-*.DS_Store
-*.class
+# 2. Archivos temporales de Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.swp
+.pytest_cache/
 
-# Docker build cache
-!**/Dockerfile
-!**/.dockerignore
+# 3. Archivos temporales de Terraform (Infraestructura)
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# 4. Configuración de Editores (IDE) y Sistema Operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
