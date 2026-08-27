@@ -55,6 +55,7 @@ async def chat_completions(request: ChatRequest):
         respuesta_ia = f"Hola, soy el agente de Víctor Molina. Es especialista en DevSecOps, Cloud y estudiante de Actuaría en la UNAM."
 
     # 4. Respuesta estructurada bajo el estándar Open Responses que espera Banorte
+    # 
     return {
         "model": "banorte-cv-agent",
         "output": [
@@ -62,10 +63,12 @@ async def chat_completions(request: ChatRequest):
                 "role": "assistant",
                 "content": [
                     {
-                        "type": "text",
+                        "type": "output_text", # Cambiado para asegurar compatibilidad terminal
                         "text": respuesta_ia
                     }
                 ]
             }
-        ]
+        ],
+        "finish_reason": "stop",
+        "done": True
     }
