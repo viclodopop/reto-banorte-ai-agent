@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Response
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from app.api.dependencies import verify_api_key
 from pydantic import BaseModel
 from typing import List, Optional, Any
@@ -17,21 +17,28 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     messages: Optional[List[MessageInput]] = []
     input: Optional[List[MessageInput]] = []
+    stream: Optional[bool] = False  # Capturamos si la plataforma pide streaming
 
 @router.post("/responses", dependencies=[Depends(verify_api_key)])
-async def chat_completions(request: ChatRequest):
-    user_query = "Hola, cuéntame sobre la trayectoria y perfil de Víctor Molina Sánchez."
+async def chat_completions(raw_request: Request):
+    try:
+        body = await raw_request.json()
+    except Exception:
+        body = {}
     
-    for container in [request.messages, request.input]:
-        if container:
-            for m in reversed(container):
-                if hasattr(m, 'content') and m.content:
-                    if isinstance(m.content, str):
-                        user_query = m.content
-                        break
-                    elif isinstance(m.content, list) and len(m.content) > 0:
-                        user_query = m.content[0].get("text", user_query)
-                        break
+    # Extraemos parámetros del request de Banorte
+    stream_requested = body.get("stream", False)
+    messages = body.get("messages", []) or body.get("input", [])
+    
+    user_query = "Hola, cuéntame sobre la trayectoria y perfil de Víctor Molina Sánchez."
+    if messages:
+        last_msg = messages[-1]
+        if isinstance(last_msg, dict):
+            content = last_msg.get("content")
+            if isinstance(content, str):
+                user_query = content
+            elif isinstance(content, list) and len(content) > 0:
+                user_query = content[0].get("text", user_query)
 
     cv_context = """
     Perfil: Víctor Molina Sánchez, nacido el 19 de febrero de 2003. Estudiante de Actuaría en la UNAM. 
@@ -46,19 +53,31 @@ async def chat_completions(request: ChatRequest):
         
         model = genai.GenerativeModel(
             model_name="gemini-1.5-flash",
-            system_instruction="Eres el asistente experto del CV de Víctor Molina. Responde de forma profesional, técnica y concisa basándote estrictamente en su información. No uses bloques Markdown de código ni texto adicional, solo el texto plano de la respuesta."
+            system_instruction="Eres el asistente experto del CV de Víctor Molina. Responde de forma profesional, técnica y concisa basándote estrictamente en su información."
         )
         response = model.generate_content(f"Contexto: {cv_context}\n\nPregunta del evaluador: {user_query}")
-        # Limpiamos cualquier rastro de markdown por si Gemini lo llega a incluir
-        respuesta_ia = response.text.replace("```json", "").replace("```", "").strip()
+        respuesta_ia = response.text.strip()
     except Exception as e:
         respuesta_ia = "Hola, soy el agente de Víctor Molina. Es especialista en DevSecOps, Cloud y estudiante de Actuaría en la UNAM."
 
-    # Usamos JSONResponse explícitamente para garantizar el Content-Type: application/json
+    # Si la plataforma de Banorte pide Streaming (SSE)
+    if stream_requested:
+        async def event_generator():
+            # Mandamos el fragmento de texto inicial
+            chunk_data = {
+                "object": "chat.completion.chunk",
+                "choices": [{"index": 0, "delta": {"role": "assistant", "content": respuesta_ia}, "finish_reason": None}]
+            }
+            yield f"data: {json.dumps(chunk_data)}\n\n"
+            
+            # Evento terminal obligatorio que exige el protocolo SSE para indicar cierre
+            yield f"data: [DONE]\n\n"
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    # Si la plataforma pide respuesta tradicional JSON completa
     payload = {
-        "id": "chatcmpl-banorte-safe",
         "object": "chat.completion",
-        "created": 1700000000,
         "model": "banorte-cv-agent",
         "choices": [
             {
@@ -71,5 +90,4 @@ async def chat_completions(request: ChatRequest):
             }
         ]
     }
-    
     return JSONResponse(content=payload)
