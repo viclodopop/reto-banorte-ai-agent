@@ -1,33 +1,66 @@
-from fastapi import APIRouter, Depends, HTTPException
-from app.models.schemas import ChatCompletionRequest, ChatCompletionResponse, Choice, ChatMessage, Usage
-from app.core.cv_agent import agent_service
+from fastapi import APIRouter, Depends
 from app.api.dependencies import verify_api_key
-import time
+from pydantic import BaseModel
+from typing import List, Optional, Any
 
 router = APIRouter()
 
-@router.post("/responses", response_model=ChatCompletionResponse, dependencies=[Depends(verify_api_key)])
-async def chat_completions(request: ChatCompletionRequest):
-    # 1. Extraemos el mensaje de forma segura por si viene vacío o con otra estructura
-    user_query = "Hola, cuéntame sobre Víctor."
-    if request.messages and len(request.messages) > 0:
-        user_query = request.messages[-1].content
+class ContentItem(BaseModel):
+    type: Optional[str] = "input_text"
+    text: Optional[str] = ""
 
-    # 2. Generamos la respuesta con tu RAG y Gemini
+class MessageInput(BaseModel):
+    role: str
+    content: Any # Puede venir como texto plano o como arreglo de objetos
+
+class ChatRequest(BaseModel):
+    model: Optional[str] = None
+    messages: Optional[List[MessageInput]] = []
+    input: Optional[List[MessageInput]] = []
+
+@router.post("/responses", dependencies=[Depends(verify_api_key)])
+async def chat_completions(request: ChatRequest):
+    # 1. Extraemos la pregunta sin importar si mandaron 'messages' o 'input'
+    user_query = "Hola, cuéntame sobre Víctor."
+    
+    # Revisamos en messages
+    if request.messages:
+        for m in reversed(request.messages):
+            if m.content:
+                if isinstance(m.content, str):
+                    user_query = m.content
+                    break
+                elif isinstance(m.content, list) and len(m.content) > 0:
+                    user_query = m.content[0].get("text", user_query)
+                    break
+                    
+    # Revisamos en input por si el cliente usa ese campo
+    if request.input:
+        for m in reversed(request.input):
+            if m.content:
+                if isinstance(m.content, str):
+                    user_query = m.content
+                    break
+                elif isinstance(m.content, list) and len(m.content) > 0:
+                    user_query = m.content[0].get("text", user_query)
+                    break
+
+    # 2. Generamos la respuesta con tu agente RAG y Gemini
+    from app.core.cv_agent import agent_service
     respuesta_ia = agent_service.generate_response(user_query)
 
-    # 3. Devolvemos el JSON con el estándar exacto que espera la plataforma
-    return ChatCompletionResponse(
-        id="chatcmpl-banorte-01",
-        object="chat.completion",
-        created=int(time.time()),
-        model="banorte-cv-agent",
-        choices=[
-            Choice(
-                index=0,
-                message=ChatMessage(role="assistant", content=respuesta_ia),
-                finish_reason="stop"
-            )
-        ],
-        usage=Usage(prompt_tokens=50, completion_tokens=50, total_tokens=100)
-    )
+    # 3. Respondemos estrictamente bajo el esquema Open Responses que el chat de React espera
+    return {
+        "model": "banorte-cv-agent",
+        "output": [
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": respuesta_ia
+                    }
+                ]
+            }
+        ]
+    }
