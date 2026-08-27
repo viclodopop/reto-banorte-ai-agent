@@ -18,7 +18,6 @@ class ChatRequest(BaseModel):
 
 @router.post("/responses", dependencies=[Depends(verify_api_key)])
 async def chat_completions(request: ChatRequest):
-    # 1. Extraemos la pregunta del usuario de forma segura
     user_query = "Hola, cuéntame sobre la trayectoria y perfil de Víctor Molina Sánchez."
     
     for container in [request.messages, request.input]:
@@ -32,7 +31,6 @@ async def chat_completions(request: ChatRequest):
                         user_query = m.content[0].get("text", user_query)
                         break
 
-    # 2. Contexto profesional del CV
     cv_context = """
     Perfil: Víctor Molina Sánchez, nacido el 19 de febrero de 2003. Estudiante de Actuaría en la UNAM. 
     Experiencia: Ex Ingeniero Back-end en Babel (desarrollo de microservicios, optimización de APIs y bases de datos). 
@@ -40,7 +38,6 @@ async def chat_completions(request: ChatRequest):
     Intereses: Colecciona Monster High, juega videojuegos en Steam/Nintendo, usa herramientas de desarrollo y dispositivos Samsung.
     """
 
-    # 3. Llamada estricta y segura a Gemini usando exclusivamente variables de entorno
     try:
         api_key = os.getenv("GEMINI_API_KEY")
         genai.configure(api_key=api_key)
@@ -52,23 +49,22 @@ async def chat_completions(request: ChatRequest):
         response = model.generate_content(f"Contexto: {cv_context}\n\nPregunta del evaluador: {user_query}")
         respuesta_ia = response.text
     except Exception as e:
-        respuesta_ia = f"Hola, soy el agente de Víctor Molina. Es especialista en DevSecOps, Cloud y estudiante de Actuaría en la UNAM."
+        respuesta_ia = "Hola, soy el agente de Víctor Molina. Es especialista en DevSecOps, Cloud y estudiante de Actuaría en la UNAM."
 
-    # 4. Respuesta estructurada bajo el estándar Open Responses que espera Banorte
-    # 
+    # Estructura JSON estándar de OpenAI / Open Responses compatible con el cliente
     return {
+        "id": "chatcmpl-banorte-final",
+        "object": "chat.completion",
+        "created": 1700000000,
         "model": "banorte-cv-agent",
-        "output": [
+        "choices": [
             {
-                "role": "assistant",
-                "content": [
-                    {
-                        "type": "output_text", # Cambiado para asegurar compatibilidad terminal
-                        "text": respuesta_ia
-                    }
-                ]
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": respuesta_ia
+                },
+                "finish_reason": "stop"
             }
-        ],
-        "finish_reason": "stop",
-        "done": True
+        ]
     }
