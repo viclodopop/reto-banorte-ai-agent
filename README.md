@@ -33,3 +33,6 @@ El agente está dockerizado usando una imagen ligera (`python:3.11-slim`) y fue 
 * **Endpoint público (Open Responses):** `https://banorte-cv-agent-252099743248.us-central1.run.app/v1/responses`
 * **Compatibilidad adicional (Chat Completions):** `https://banorte-cv-agent-252099743248.us-central1.run.app/v1/chat/completions`
 
+
+
+

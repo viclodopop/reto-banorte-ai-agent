@@ -73,6 +73,55 @@ def _extract_user_query(body: dict) -> str:
     return default_query
 
 
+def _extract_recent_user_turns(body: dict, max_turns: int = 3) -> List[str]:
+    """Extrae las ultimas intervenciones del usuario para mejorar continuidad conversacional."""
+    turns: List[str] = []
+
+    raw_input = body.get("input")
+    if isinstance(raw_input, list):
+        for item in raw_input:
+            if not isinstance(item, dict):
+                continue
+            if item.get("role") != "user":
+                continue
+            candidate = _extract_text_from_content(item.get("content"))
+            if candidate:
+                turns.append(candidate)
+
+    messages = body.get("messages")
+    if isinstance(messages, list):
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            if msg.get("role") != "user":
+                continue
+            candidate = _extract_text_from_content(msg.get("content"))
+            if candidate:
+                turns.append(candidate)
+
+    deduped_turns: List[str] = []
+    for turn in turns:
+        if turn not in deduped_turns:
+            deduped_turns.append(turn)
+
+    return deduped_turns[-max_turns:]
+
+
+def _build_enriched_query(current_query: str, recent_turns: List[str]) -> str:
+    if not recent_turns:
+        return current_query
+
+    history_block = "\n".join(f"- {turn}" for turn in recent_turns)
+    return (
+        "Contexto reciente de la conversacion (usuario):\n"
+        f"{history_block}\n\n"
+        "Consulta principal actual:\n"
+        f"{current_query}\n\n"
+        "Instruccion de estilo: responde con buen nivel de detalle, en 1-2 parrafos "
+        "o 4-6 vietas segun corresponda."
+    )
+
+
 def _build_open_response(answer: str, model_name: str) -> dict:
     created_at = int(time.time())
     response_id = f"resp_{uuid.uuid4().hex[:18]}"
@@ -148,17 +197,20 @@ async def chat_completions(raw_request: Request):
         body = {}
 
     user_query = _extract_user_query(body)
+    recent_turns = _extract_recent_user_turns(body)
+    enriched_query = _build_enriched_query(user_query, recent_turns)
     requested_model = body.get("model") or "banorte-cv-agent"
     logger.info(
-        "Solicitud /v1/responses recibida | model=%s | stream=%s | query_len=%s",
+        "Solicitud /v1/responses recibida | model=%s | stream=%s | query_len=%s | recent_turns=%s",
         requested_model,
         bool(body.get("stream", False)),
         len(user_query),
+        len(recent_turns),
     )
 
     try:
         # El agente centraliza guardrails, recuperacion RAG y llamada al LLM.
-        answer = await agent_service.answer_query(user_query)
+        answer = await agent_service.answer_query(enriched_query)
     except Exception:
         logger.exception("Fallo no controlado en answer_query")
         answer = (
@@ -185,15 +237,18 @@ async def legacy_chat_completions(raw_request: Request):
         body = {}
 
     user_query = _extract_user_query(body)
+    recent_turns = _extract_recent_user_turns(body)
+    enriched_query = _build_enriched_query(user_query, recent_turns)
     requested_model = body.get("model") or settings.MODEL_NAME
     logger.info(
-        "Solicitud /v1/chat/completions recibida | model=%s | query_len=%s",
+        "Solicitud /v1/chat/completions recibida | model=%s | query_len=%s | recent_turns=%s",
         requested_model,
         len(user_query),
+        len(recent_turns),
     )
 
     try:
-        answer = await agent_service.answer_query(user_query)
+        answer = await agent_service.answer_query(enriched_query)
     except Exception:
         logger.exception("Fallo no controlado en answer_query para /chat/completions")
         answer = (

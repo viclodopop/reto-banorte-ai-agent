@@ -24,6 +24,33 @@ class CVAgent:
             bool(settings.GEMINI_API_KEY),
         )
 
+    def _expand_if_too_short(self, answer: str, context: str) -> str:
+        """Garantiza una respuesta minima util sin inventar informacion fuera del contexto."""
+        normalized = (answer or "").strip()
+        if len(normalized) >= 260:
+            return normalized
+
+        context_lines = [line.strip(" -\t") for line in context.splitlines() if line.strip()]
+        context_lines = [line for line in context_lines if len(line) > 25]
+        highlights = context_lines[:4]
+
+        if not highlights:
+            return normalized
+
+        bullet_points = "\n".join(f"- {line}" for line in highlights)
+        expanded = (
+            f"{normalized}\n\n"
+            "Para dar mayor contexto del perfil, estos son puntos relevantes:\n"
+            f"{bullet_points}\n\n"
+            "Si quieres, puedo profundizar en experiencia, educacion, habilidades o proyectos."
+        )
+        logger.info(
+            "Respuesta expandida por longitud corta | original_len=%s | expanded_len=%s",
+            len(normalized),
+            len(expanded),
+        )
+        return expanded
+
     async def answer_query(self, user_message: str) -> str:
         """Procesa la consulta pasando por filtros, recuperación RAG e inferencia."""
         logger.info("Inicio answer_query | input_len=%s", len(user_message or ""))
@@ -55,10 +82,11 @@ class CVAgent:
                     # El system prompt define límites y tono del agente.
                     system_instruction=system_instruction,
                     temperature=0.1, # Máximo determinismo para perfil financiero
-                    max_output_tokens=600,
+                    max_output_tokens=900,
                 )
             )
             raw_output = response.text or "No se pudo generar una respuesta."
+            raw_output = self._expand_if_too_short(raw_output, context)
             logger.info("Respuesta modelo recibida | output_len=%s", len(raw_output or ""))
         except Exception as e:
             logger.exception("Error al invocar el modelo Gemini")
