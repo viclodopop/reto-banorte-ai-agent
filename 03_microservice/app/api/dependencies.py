@@ -1,19 +1,15 @@
-from fastapi import Security, HTTPException, status
+from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.config.settings import settings
+import os
 
-security = HTTPBearer()
+# Usamos HTTPBearer para atrapar el formato de Banorte automáticamente
+security = HTTPBearer(auto_error=False)
 
-def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(security)):
-    """
-    Valida que el token enviado en la cabecera (Authorization: Bearer <token>)
-    coincida con la API Key interna del servicio.
-    Demuestra un manejo de seguridad básico pero necesario en ambientes corporativos.
-    """
-    if credentials.credentials != settings.API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas. Acceso denegado al agente CV.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return credentials.credentials
+async def verify_api_key(credentials: HTTPAuthorizationCredentials = Security(security)):
+    expected_key = os.getenv("API_KEY", "banorte-live-secret-key-2026")
+    
+    # Validamos que el token exista y coincida
+    if credentials and credentials.credentials == expected_key:
+        return credentials.credentials
+        
+    raise HTTPException(status_code=401, detail="Acceso denegado. Llave incorrecta.")
