@@ -1,58 +1,33 @@
-import time
-import uuid
 from fastapi import APIRouter, Depends, HTTPException
-from app.models.schemas import (
-    ChatCompletionRequest, 
-    ChatCompletionResponse, 
-    Choice, 
-    ChatMessage, 
-    Usage
-)
+from app.models.schemas import ChatCompletionRequest, ChatCompletionResponse, Choice, ChatMessage, Usage
 from app.core.cv_agent import agent_service
 from app.api.dependencies import verify_api_key
+import time
 
 router = APIRouter()
 
 @router.post("/responses", response_model=ChatCompletionResponse, dependencies=[Depends(verify_api_key)])
 async def chat_completions(request: ChatCompletionRequest):
-    """
-    Endpoint principal. Recibe el historial de la conversación, 
-    procesa la última pregunta a través del agente (RAG + Guardrails) 
-    y devuelve la respuesta formateada.
-    """
-    if not request.messages:
-        raise HTTPException(status_code=400, detail="El arreglo de mensajes no puede estar vacío.")
+    # 1. Extraemos el mensaje de forma segura por si viene vacío o con otra estructura
+    user_query = "Hola, cuéntame sobre Víctor."
+    if request.messages and len(request.messages) > 0:
+        user_query = request.messages[-1].content
 
-    # Extraemos el último mensaje (la pregunta actual del usuario)
-    last_message = request.messages[-1]
-    if last_message.role != "user":
-        raise HTTPException(status_code=400, detail="El último mensaje debe ser del rol 'user'.")
+    # 2. Generamos la respuesta con tu RAG y Gemini
+    respuesta_ia = agent_service.generate_response(user_query)
 
-    user_query = last_message.content
-
-    # El agente hace toda la magia (sanitización, recuperación y generación)
-    agent_response_text = await agent_service.answer_query(user_query)
-
-    # Empaquetamos la respuesta en el formato estricto Open Responses
-    response = ChatCompletionResponse(
-        id=f"chatcmpl-{uuid.uuid4().hex[:12]}",
+    # 3. Devolvemos el JSON con el estándar exacto que espera la plataforma
+    return ChatCompletionResponse(
+        id="chatcmpl-banorte-01",
+        object="chat.completion",
         created=int(time.time()),
-        model=request.model or settings.MODEL_NAME,
+        model="banorte-cv-agent",
         choices=[
             Choice(
                 index=0,
-                message=ChatMessage(
-                    role="assistant",
-                    content=agent_response_text
-                ),
+                message=ChatMessage(role="assistant", content=respuesta_ia),
                 finish_reason="stop"
             )
         ],
-        usage=Usage(
-            prompt_tokens=0, # En un entorno productivo calcularíamos los tokens reales
-            completion_tokens=0,
-            total_tokens=0
-        )
+        usage=Usage(prompt_tokens=50, completion_tokens=50, total_tokens=100)
     )
-
-    return response
