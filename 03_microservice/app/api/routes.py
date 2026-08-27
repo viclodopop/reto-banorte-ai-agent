@@ -17,7 +17,7 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     messages: Optional[List[MessageInput]] = []
     input: Optional[List[MessageInput]] = []
-    stream: Optional[bool] = False  # Capturamos si la plataforma pide streaming
+    stream: Optional[bool] = False
 
 @router.post("/responses", dependencies=[Depends(verify_api_key)])
 async def chat_completions(raw_request: Request):
@@ -26,7 +26,6 @@ async def chat_completions(raw_request: Request):
     except Exception:
         body = {}
     
-    # Extraemos parámetros del request de Banorte
     stream_requested = body.get("stream", False)
     messages = body.get("messages", []) or body.get("input", [])
     
@@ -60,22 +59,20 @@ async def chat_completions(raw_request: Request):
     except Exception as e:
         respuesta_ia = "Hola, soy el agente de Víctor Molina. Es especialista en DevSecOps, Cloud y estudiante de Actuaría en la UNAM."
 
-    # Si la plataforma de Banorte pide Streaming (SSE)
     if stream_requested:
         async def event_generator():
-            # Mandamos el fragmento de texto inicial
+            # Evento con tipo explícito que exige el validador de Banorte
             chunk_data = {
-                "object": "chat.completion.chunk",
-                "choices": [{"index": 0, "delta": {"role": "assistant", "content": respuesta_ia}, "finish_reason": None}]
+                "type": "text",
+                "role": "assistant",
+                "content": respuesta_ia,
+                "finish_reason": "stop"
             }
-            yield f"data: {json.dumps(chunk_data)}\n\n"
-            
-            # Evento terminal obligatorio que exige el protocolo SSE para indicar cierre
-            yield f"data: [DONE]\n\n"
+            yield f"event: message\ndata: {json.dumps(chunk_data)}\n\n"
+            yield f"event: done\ndata: [DONE]\n\n"
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-    # Si la plataforma pide respuesta tradicional JSON completa
     payload = {
         "object": "chat.completion",
         "model": "banorte-cv-agent",
