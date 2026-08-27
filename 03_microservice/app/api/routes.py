@@ -13,7 +13,7 @@ from app.api.dependencies import verify_api_key
 
 router = APIRouter()
 
-@router.post("/chat/completions", response_model=ChatCompletionResponse, dependencies=[Depends(verify_api_key)])
+@router.post("/responses", response_model=ChatCompletionResponse, dependencies=[Depends(verify_api_key)])
 async def chat_completions(request: ChatCompletionRequest):
     """
     Endpoint principal. Recibe el historial de la conversación, 
