@@ -28,12 +28,14 @@ class CVAgent:
         """Procesa la consulta pasando por filtros, recuperación RAG e inferencia."""
         logger.info("Inicio answer_query | input_len=%s", len(user_message or ""))
         
+        # Primera barrera: bloquea intentos de prompt injection.
         # 1. Guardrail de entrada
         is_valid, sanitized_or_error = input_sanitizer.sanitize(user_message)
         if not is_valid:
             logger.warning("Input rechazado por guardrail de entrada")
             return sanitized_or_error
 
+        # Recupera evidencia textual del CV para anclar la respuesta del modelo.
         # 2. Recuperación de contexto RAG
         context = retriever_service.get_relevant_context(sanitized_or_error)
         logger.info("Contexto recuperado | context_len=%s", len(context or ""))
@@ -50,6 +52,7 @@ class CVAgent:
                 model=settings.MODEL_NAME,
                 contents=sanitized_or_error,
                 config=types.GenerateContentConfig(
+                    # El system prompt define límites y tono del agente.
                     system_instruction=system_instruction,
                     temperature=0.1, # Máximo determinismo para perfil financiero
                     max_output_tokens=600,
@@ -61,6 +64,7 @@ class CVAgent:
             logger.exception("Error al invocar el modelo Gemini")
             raw_output = f"Ocurrió un error al procesar la solicitud con el modelo: {str(e)}"
 
+        # Última barrera: evita fuga accidental de datos sensibles.
         # 4. Guardrail de salida (DLP)
         safe_output = output_filter.filter(raw_output)
         if safe_output != raw_output:

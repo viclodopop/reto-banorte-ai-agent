@@ -42,6 +42,7 @@ def _extract_text_from_content(content: Any) -> Optional[str]:
 def _extract_user_query(body: dict) -> str:
     default_query = "Hola, cuentame sobre la trayectoria y perfil de Victor Molina Sanchez."
 
+    # Prioriza el contrato de Open Responses, donde input puede ser texto directo.
     # Open Responses: input puede ser string o lista de items
     raw_input = body.get("input")
     if isinstance(raw_input, str) and raw_input.strip():
@@ -77,6 +78,7 @@ def _build_open_response(answer: str, model_name: str) -> dict:
     response_id = f"resp_{uuid.uuid4().hex[:18]}"
     message_id = f"msg_{uuid.uuid4().hex[:18]}"
 
+    # Respuesta terminal en formato Open Responses para evitar errores del frontend.
     return {
         "id": response_id,
         "object": "response",
@@ -155,6 +157,7 @@ async def chat_completions(raw_request: Request):
     )
 
     try:
+        # El agente centraliza guardrails, recuperacion RAG y llamada al LLM.
         answer = await agent_service.answer_query(user_query)
     except Exception:
         logger.exception("Fallo no controlado en answer_query")

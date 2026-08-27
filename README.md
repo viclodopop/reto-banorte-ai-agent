@@ -15,9 +15,9 @@ Decidí estructurar el proyecto como un monorepo para separar claramente las res
 
 ## 2. El Agente y el Modelo
 
-El servicio expone un endpoint que cumple con el estándar de OpenAI (Chat Completions) que pedía la plataforma, pero por detrás procesa todo utilizando la API de **Gemini 3.6 Flash**. 
+El servicio expone un endpoint principal compatible con **Open Responses** (`/v1/responses`) y mantiene compatibilidad adicional con **Chat Completions** (`/v1/chat/completions`). Por detrás, la generación se realiza con la API de **Gemini 3.6 Flash**.
 
-Para inyectar el contexto de mi perfil, implementé un flujo RAG simplificado que lee mi trayectoria desde un archivo Markdown (`knowledge/curriculum.md`). Usé un *System Prompt* estricto para darle personalidad técnica al agente y evitar que alucine habilidades o experiencia que no tengo.
+Para inyectar el contexto de mi perfil, implementé un flujo RAG simplificado que indexa documentos Markdown dentro de `03_microservice/knowledge/` (perfil, experiencia, educación, habilidades y proyectos). Usé un *System Prompt* estricto para mantener respuestas técnicas, verificables y alineadas al CV.
 
 ## 3. Seguridad y Buenas Prácticas
 
@@ -30,5 +30,6 @@ Al apuntar a un sector bancario, traté de cubrir lo básico de DevSecOps:
 
 El agente está dockerizado usando una imagen ligera (`python:3.11-slim`) y fue desplegado en **Google Cloud Run** (Serverless) para asegurar disponibilidad y escalabilidad automática.
 
-* **Endpoint público:** `https://banorte-cv-agent-252099743248.us-central1.run.app/v1/chat/completions`
+* **Endpoint público (Open Responses):** `https://banorte-cv-agent-252099743248.us-central1.run.app/v1/responses`
+* **Compatibilidad adicional (Chat Completions):** `https://banorte-cv-agent-252099743248.us-central1.run.app/v1/chat/completions`
 
