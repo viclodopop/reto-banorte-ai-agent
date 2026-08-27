@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
+from fastapi.responses import JSONResponse
 from app.api.dependencies import verify_api_key
 from pydantic import BaseModel
 from typing import List, Optional, Any
 import os
+import json
 import google.generativeai as genai
 
 router = APIRouter()
@@ -44,16 +46,17 @@ async def chat_completions(request: ChatRequest):
         
         model = genai.GenerativeModel(
             model_name="gemini-1.5-flash",
-            system_instruction="Eres el asistente experto del CV de Víctor Molina. Responde de forma profesional, técnica y concisa basándote estrictamente en su información."
+            system_instruction="Eres el asistente experto del CV de Víctor Molina. Responde de forma profesional, técnica y concisa basándote estrictamente en su información. No uses bloques Markdown de código ni texto adicional, solo el texto plano de la respuesta."
         )
         response = model.generate_content(f"Contexto: {cv_context}\n\nPregunta del evaluador: {user_query}")
-        respuesta_ia = response.text
+        # Limpiamos cualquier rastro de markdown por si Gemini lo llega a incluir
+        respuesta_ia = response.text.replace("```json", "").replace("```", "").strip()
     except Exception as e:
         respuesta_ia = "Hola, soy el agente de Víctor Molina. Es especialista en DevSecOps, Cloud y estudiante de Actuaría en la UNAM."
 
-    # Estructura JSON estándar de OpenAI / Open Responses compatible con el cliente
-    return {
-        "id": "chatcmpl-banorte-final",
+    # Usamos JSONResponse explícitamente para garantizar el Content-Type: application/json
+    payload = {
+        "id": "chatcmpl-banorte-safe",
         "object": "chat.completion",
         "created": 1700000000,
         "model": "banorte-cv-agent",
@@ -68,3 +71,5 @@ async def chat_completions(request: ChatRequest):
             }
         ]
     }
+    
+    return JSONResponse(content=payload)
