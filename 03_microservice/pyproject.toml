@@ -1,0 +1,26 @@
+[tool.poetry]
+
+name = "banorte-cv-rag-agent"
+version = "0.1.0"
+description = "Microservicio RAG para Banorte"
+authors = ["Victor Lopez <victor.lopez@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.68.0"
+uvicorn = "^0.15.0"
+pydantic = "^1.8.0"
+tensorflow = "^2.4.1"
+collections = "^0.1.0"
+requests = "^2.25.1"
+pandas = "^1.2.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.2"
+pylint = "^2.7.4"
+
+git-url = "https://github.com/your-repo.git"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

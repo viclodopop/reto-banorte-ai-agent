@@ -1,0 +1,45 @@
+# Logs
+logs/
+*.log
+
+# Dependency directories
+node_modules
+__pycache__
+
+# IDE and editor files
+.vscode/
+.idea/
+
+# Operating system files
+.Thumbs.db
+
+# Terraform state files
+*.tfstate*
+*.terraform
+
+# Docker
+*.dockerenv
+
+# .env files
+.env
+.env.*
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Build output and cache directories
+/build/
+/dist/
+/cache/
+
+# Miscellaneous
+*.DS_Store
+*.class
+*.pyc
+*.pyo
+*.pyd
+*.swp
+
+# Docker build cache
+!**/Dockerfile
+!**/.dockerignore

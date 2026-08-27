@@ -1,0 +1,29 @@
+# Build context
+build/
+
+# Logs
+logs/
+*.log
+
+# Dependency directories
+node_modules
+__pycache__
+
+# IDE and editor files
+.vscode/
+.idea/
+
+# Operating system files
+.Thumbs.db
+
+# .env files
+.env
+.env.*
+
+# Miscellaneous
+*.DS_Store
+*.class
+*.pyc
+*.pyo
+*.pyd
+*.swp

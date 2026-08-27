@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Credit Card Number",
+    "pattern": "\b(?:\d[ -]*?\D){15,16}\b",
+    "severity": "high"
+  },
+  {
+    "name": "Social Security Number",
+    "pattern": "\b\d{3}-?\d{2}-?\d{4}\b",
+    "severity": "high"
+  },
+  {
+    "name": "Email Address",
+    "pattern": "\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+    "severity": "medium"
+  }
+]

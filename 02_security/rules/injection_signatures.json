@@ -1,0 +1,12 @@
+[
+  {
+    "name": "SQL Injection",
+    "pattern": "(\b(?:select|update|delete|drop|insert|alter|create)\b).*\bfrom\b",
+    "severity": "high"
+  },
+  {
+    "name": "XSS Injection",
+    "pattern": \<script\>.*\</script\>",
+    "severity": "high"
+  }
+]
