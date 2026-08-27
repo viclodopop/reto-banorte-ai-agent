@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from app.api.dependencies import verify_api_key
 from pydantic import BaseModel
 from typing import List, Optional, Any
 import os
-import json
 import google.generativeai as genai
 
 router = APIRouter()
@@ -26,7 +25,6 @@ async def chat_completions(raw_request: Request):
     except Exception:
         body = {}
     
-    stream_requested = body.get("stream", False)
     messages = body.get("messages", []) or body.get("input", [])
     
     user_query = "Hola, cuéntame sobre la trayectoria y perfil de Víctor Molina Sánchez."
@@ -59,20 +57,9 @@ async def chat_completions(raw_request: Request):
     except Exception as e:
         respuesta_ia = "Hola, soy el agente de Víctor Molina. Es especialista en DevSecOps, Cloud y estudiante de Actuaría en la UNAM."
 
-    if stream_requested:
-        async def event_generator():
-            chunk_data = {
-                "type": "text",
-                "role": "assistant",
-                "content": respuesta_ia,
-                "finish_reason": "stop"
-            }
-            yield f"event: message\ndata: {json.dumps(chunk_data)}\n\n"
-            yield f"event: done\ndata: [DONE]\n\n"
-
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-    payload = {
+    # Estructura universal compatible con parsers de OpenAI/Open Responses
+    return JSONResponse(content={
+        "id": "chatcmpl-response",
         "object": "chat.completion",
         "model": "banorte-cv-agent",
         "choices": [
@@ -85,5 +72,4 @@ async def chat_completions(raw_request: Request):
                 "finish_reason": "stop"
             }
         ]
-    }
-    return JSONResponse(content=payload)
+    })
